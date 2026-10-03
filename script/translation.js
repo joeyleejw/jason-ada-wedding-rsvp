@@ -51,7 +51,15 @@ const translations = {
       formSendUsBlessingSubtitle: "We understand you can't join us, but we'd love to hear from you!",
       placeholderMessage: "Wishing you a lifetime of love and happiness...",
       buttonSubmit: "Submit RSVP",
-      buttonSubmitting: "Submitting...",
+      buttonSubmitting: '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Submitting...',
+      formSubmittingNote: "This can take a few seconds. Please keep this page open.",
+      formSubmittingRetry: "Still trying. Please keep this page open.",
+      formSubmitError: "We couldn't send your RSVP. Your answers are still here. Please tap Submit again, or contact Jason or Ada directly.",
+      formErrName: "Please enter your name.",
+      formErrSide: "Please let us know which side you're invited by.",
+      formErrAttend: "Please let us know if you'll be attending.",
+      formErrMeal: "Please select a meal preference.",
+      formErrGuestNames: "Please fill in all guest names.",
 
       // footer
       authorCopyright: "Author: Joey Lee &copy; 2026",
@@ -125,7 +133,15 @@ const translations = {
       formSendUsBlessingSubtitle: "我們理解您無法出席，但仍非常希望收到您的祝福！",
       placeholderMessage: "祝福你們永浴愛河，幸福美滿……",
       buttonSubmit: "提交回覆",
-      buttonSubmitting: "提交中……",
+      buttonSubmitting: '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>提交中……',
+      formSubmittingNote: "這可能需要幾秒鐘，請保持此頁面開啟。",
+      formSubmittingRetry: "仍在嘗試中，請保持此頁面開啟。",
+      formSubmitError: "未能送出您的回覆。您填寫的內容仍保留在此，請再按一次「提交回覆」，或直接聯繫 Jason 或 Ada。",
+      formErrName: "請輸入您的姓名。",
+      formErrSide: "請選擇您是哪一方的賓客。",
+      formErrAttend: "請告訴我們您是否出席。",
+      formErrMeal: "請選擇餐點偏好。",
+      formErrGuestNames: "請填寫所有賓客的姓名。",
 
       // footer
       authorCopyright: "作者：Joey Lee &copy; 2026",

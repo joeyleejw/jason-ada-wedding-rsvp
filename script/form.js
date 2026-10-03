@@ -5,8 +5,7 @@
 
 // ---------- State ----------
 let lastSubmission = {};
-let formSubmitted = false;
-let closedWithX = false;
+let isSubmitting = false;
 
 // ---------- Element references ----------
 const rsvpForm = document.getElementById("rsvp-form");
@@ -26,12 +25,20 @@ const babychairWrapper = document.getElementById("babychair-wrapper");
 const babychairSelect = document.getElementById("babychair");
 const messageInput = document.getElementById("message");
 const modalEl = document.getElementById("confirmationModal");
+const submitStatus = document.getElementById("submit-status");
 
 // ---------- Constants ----------
 const VENUE_MAPS = {
    googleMaps: "https://maps.google.com/?q=Xin+Cuisine+Chinese+Restaurant+Concorde+Hotel+Kuala+Lumpur",
    waze: "https://waze.com/ul?q=Concorde+Hotel+Kuala+Lumpur",
 };
+
+// The Apps Script web app URL lives in the form's action attribute (index.html)
+const SCRIPT_URL = rsvpForm.action;
+
+// How hard to try before telling the guest it failed
+const SUBMIT_TRIES = 3; // attempts in total
+const SUBMIT_TIMEOUT_MS = 20000; // per attempt (Apps Script can take a few seconds on a cold start)
 
 
 // =============================================================
@@ -229,7 +236,7 @@ babychairSelect.addEventListener("change", () => {
 });
 
 // =============================================================
-// Validation and submission
+// Validation
 // =============================================================
 
 function fail(message, focusEl) {
@@ -239,9 +246,9 @@ function fail(message, focusEl) {
 }
 
 function validateForm(attending) {
-   if (!nameInput.value.trim()) return fail("Please enter your name.", nameInput);
-   if (!invitedBySelect.value) return fail("Please let us know which side you're invited by.", invitedBySelect);
-   if (!attending) return fail("Please let us know if you'll be attending.", attendingSelect);
+   if (!nameInput.value.trim()) return fail(tPlain("formErrName"), nameInput);
+   if (!invitedBySelect.value) return fail(tPlain("formErrSide"), invitedBySelect);
+   if (!attending) return fail(tPlain("formErrAttend"), attendingSelect);
 
    if (attending === "yes") {
       if (!isValidPhone()) {
@@ -251,22 +258,71 @@ function validateForm(attending) {
 
       const guest1Select = document.getElementById("dietary-select-1");
       if (!guest1Select.value || guest1Select.value === "Select") {
-         return fail("Please select a meal preference.", guest1Select);
+         return fail(tPlain("formErrMeal"), guest1Select);
       }
 
       const emptyName = Array.from(guestNamesContainer.querySelectorAll(".guest-name-input")).find((el) => !el.value.trim());
-      if (emptyName) return fail("Please fill in all guest names.", emptyName);
+      if (emptyName) return fail(tPlain("formErrGuestNames"), emptyName);
    }
 
    return true;
 }
 
-rsvpForm.addEventListener("submit", (e) => {
-   const attending = attendingSelect.value;
-   if (!validateForm(attending)) {
-      e.preventDefault();
+// =============================================================
+// Submission (fetch to Google Apps Script, confirmed before we say "thank you")
+// =============================================================
+
+// One unique ID per RSVP. The script remembers it, so a retry (or a double tap)
+// can never create a second row.
+function newSubmissionId() {
+   return window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function setSubmitStatus(key) {
+   if (!submitStatus) return;
+   if (!key) {
+      submitStatus.style.display = "none";
+      submitStatus.textContent = "";
       return;
    }
+   submitStatus.textContent = tPlain(key);
+   submitStatus.style.display = "block";
+}
+
+// Resolves true only when the script answers { result: "success" }.
+// Anything else (timeout, network error, Google error page, { result: "error" }) is retried
+// with a growing pause, then reported as a failure.
+async function sendRSVP(body, onRetry) {
+   for (let attempt = 1; attempt <= SUBMIT_TRIES; attempt++) {
+      if (attempt > 1 && onRetry) onRetry(attempt);
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+      try {
+         const response = await fetch(SCRIPT_URL, { method: "POST", body, signal: controller.signal });
+         const data = await response.json();
+         if (data && data.result === "success") return true;
+         console.warn("RSVP attempt", attempt, "rejected:", data);
+      } catch (err) {
+         console.warn("RSVP attempt", attempt, "failed:", err);
+      } finally {
+         clearTimeout(timer);
+      }
+
+      if (attempt < SUBMIT_TRIES) {
+         // 1.5s, 3s, ... plus a little randomness so a crowd of guests doesn't retry in lockstep
+         await new Promise((resolve) => setTimeout(resolve, 1500 * attempt + Math.random() * 1000));
+      }
+   }
+   return false;
+}
+
+rsvpForm.addEventListener("submit", async (e) => {
+   e.preventDefault(); // we send the data ourselves with fetch
+   if (isSubmitting) return;
+
+   const attending = attendingSelect.value;
+   if (!validateForm(attending)) return;
 
    const isYes = attending === "yes";
    const phoneDigits = phoneInput.value.replace(/\D/g, "");
@@ -298,21 +354,28 @@ rsvpForm.addEventListener("submit", (e) => {
    setHidden("babychair-hidden", lastSubmission.babychair);
    setHidden("message-hidden", lastSubmission.message);
 
+   // Only the inputs that have a name attribute (the hidden ones above) are included
+   const body = new URLSearchParams(new FormData(rsvpForm));
+   body.set("submissionId", newSubmissionId());
+
    const submitBtn = rsvpForm.querySelector('button[type="submit"]');
+   isSubmitting = true;
    submitBtn.disabled = true;
    submitBtn.innerHTML = t("buttonSubmitting");
+   setSubmitStatus("formSubmittingNote");
 
-   formSubmitted = true;
-});
+   const saved = await sendRSVP(body, () => setSubmitStatus("formSubmittingRetry"));
 
-// Runs when Google Apps Script responds inside the hidden iframe
-function handleSubmitResponse() {
-   if (!formSubmitted) return;
-   formSubmitted = false;
-
-   const submitBtn = rsvpForm.querySelector('button[type="submit"]');
+   isSubmitting = false;
    submitBtn.disabled = false;
    submitBtn.innerHTML = t("buttonSubmit");
+   setSubmitStatus(null);
+
+   if (!saved) {
+      // Keep everything the guest typed so they can simply tap Submit again
+      alert(tPlain("formSubmitError"));
+      return;
+   }
 
    showThankYouMessage(lastSubmission.attending);
 
@@ -322,7 +385,14 @@ function handleSubmitResponse() {
    }).show();
 
    resetForm();
-}
+});
+
+// Warn before leaving the page while an RSVP is still being sent
+window.addEventListener("beforeunload", (e) => {
+   if (!isSubmitting) return;
+   e.preventDefault();
+   e.returnValue = "";
+});
 
 function resetForm() {
    rsvpForm.reset();
@@ -444,8 +514,6 @@ function downloadICSFile() {
 // Event wiring and initial state
 // =============================================================
 
-document.querySelector('iframe[name="hidden-iframe"]').addEventListener("load", handleSubmitResponse);
-
 guestsInput.addEventListener("input", renderGuestNames);
 
 document.getElementById("share-response-btn").addEventListener("click", (e) => {
@@ -458,12 +526,10 @@ document.getElementById("add-calendar-btn")?.addEventListener("click", (e) => {
    downloadICSFile();
 });
 
-// The modal only closes via the X; closing it refreshes the page
-modalEl.querySelector(".btn-close").addEventListener("click", () => {
-   closedWithX = true;
-});
+// The modal only closes via the X. The form was already cleared after a successful send,
+// so there is no page reload (it forced guests to re-download fonts and images).
 modalEl.addEventListener("hidden.bs.modal", () => {
-   if (closedWithX) window.location.reload();
+   window.scrollTo({ top: 0 });
 });
 
 childrenInput.disabled = true;

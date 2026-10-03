@@ -127,10 +127,8 @@
                         <h3 class="mb-2 fade-in-section"><span data-i18n="formSubheadline"></span><span
                                 data-i18n="RSVPbefore"></span></h3>
                     </div>
-                    <!-- form -->
-                    <iframe name="hidden-iframe" style="display:none;"></iframe>
-
-                    <form id="rsvp-form" class="fade-in-section" novalidate target="hidden-iframe" method="POST"
+                    <!-- form: submitted with fetch() from script/form.js (reads the action URL below) -->
+                    <form id="rsvp-form" class="fade-in-section" novalidate method="POST"
                         action="https://script.google.com/macros/s/AKfycbx7C51DdhvXx3W1keMZEEunrG2RslZSlHzDjxBO5HvA726pbh-FK43nf73U8OSLzKTw3w/exec">
 
                         <div class="row justify-content-between mb-3">
@@ -235,6 +233,9 @@
                         <input type="hidden" name="message" id="message-hidden">
 
                         <button type="submit" data-i18n="buttonSubmit"></button>
+                        <!-- Live status while sending (text set in form.js) -->
+                        <p id="submit-status" class="form-disclaimer text-center mt-2" role="status" aria-live="polite"
+                            style="display:none"></p>
                     </form>
                 </div>
             </div>

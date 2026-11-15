@@ -9,7 +9,7 @@ const translations = {
       rsvpButton: "RSVP",
 
       // rsvp section
-      RSVPbefore: "by 14/11/2026",
+      RSVPbefore: "by 21/11/2026",
       RSVPheadline: "Our Big Day is Almost HERE!",
       RSVPsubheadline: "With hearts full of joy, we invite you to witness our forever in",
       countdownDays: "Days",
@@ -91,7 +91,7 @@ const translations = {
       rsvpButton: "敬請回覆",
 
       // rsvp section
-      RSVPbefore: "請於2026年11月14日前回覆",
+      RSVPbefore: "請於2026年11月21日前回覆",
       RSVPheadline: "我們的大喜之日即將到來！",
       RSVPsubheadline: "懷著滿心的喜悅，誠邀您見證我們的永恆於",
       countdownDays: "天",
